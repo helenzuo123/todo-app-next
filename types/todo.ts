@@ -11,6 +11,8 @@ export interface Todo {
   priority: TodoPriority  // 优先级
   user_id?: string        // 用户 ID（可选，后续用于多用户）
   created_at: string      // 数据库自动生成的创建时间
+  updated_at: string 
+  delete_flag: boolean     
 }
 
 // 定义统计信息的接口

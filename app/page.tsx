@@ -25,7 +25,8 @@ export default function Home() {
     // ⭐ 调用 Supabase API 查询数据
     const { data, error } = await supabase
       .from('todos')                           // 从 todos 表查询
-      .select('*')                             // 选择所有字段
+      .select('*')
+      .eq('delete_flag',false)                            
       .order('created_at', { ascending: false }) // 按创建时间倒序（最新的在前）
 
     // ⭐ 错误处理
@@ -51,7 +52,9 @@ export default function Home() {
       .insert([{                  // insert 接收一个数组
         text: inputText,
         completed: false,
-        priority: priority
+        priority: priority,
+        delete_flag: false,
+        updated_at: new Date().toISOString()
         // 注意：id 和 created_at 会自动生成，不需要传
       }])
       .select()  // ⭐ 重要：添加 .select() 才能返回插入的数据
@@ -75,7 +78,10 @@ export default function Home() {
     // ⭐ 更新数据库中的 completed 字段
     const { error } = await supabase
       .from('todos')
-      .update({ completed: !currentCompleted })  // 取反：true → false, false → true
+      .update({ 
+        completed: !currentCompleted, // 取反：true → false, false → true
+        updated_at: new Date().toISOString()
+      })  
       .eq('id', id)  // ⭐ 条件：只更新 id 匹配的那一行
 
     if (error) {
@@ -92,11 +98,14 @@ export default function Home() {
    * @param id 任务的 UUID
    */
   const deleteTodo = async (id: string) => {
-    // ⭐ 从数据库删除
+    // ✅ 只标记为已删除，不真正删除
     const { error } = await supabase
       .from('todos')
-      .delete()
-      .eq('id', id)  // 条件：只删除 id 匹配的那一行
+      .update({                                 // ← 🆕 改用 update 而不是 delete
+        delete_flag: true,                      // ← 🆕 标记为已删除
+        updated_at: new Date().toISOString()    // ← 🆕 记录删除时间
+      })
+      .eq('id', id)
 
     if (error) {
       console.error('❌ 删除任务失败:', error.message)
