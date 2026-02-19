@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { User, Search, X, ChevronLeft, ChevronRight, ClipboardList, Trash2, Pencil, CalendarIcon } from 'lucide-react'
+import { User, Search, X, ChevronLeft, ChevronRight, ClipboardList, Trash2, Pencil, CalendarIcon, LogOut } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
@@ -70,6 +70,7 @@ export default function Home() {
   const [deletingId, setDeletingId] = useState<string>('')
   const [searchText, setSearchText] = useState<string>('') // 🔍 搜索文本
   const [datesWithTodos, setDatesWithTodos] = useState<string[]>([]) // 📅 有任务的日期列表
+  const [isLoggingOut, setIsLoggingOut] = useState(false) // 🚪 退出登录中
   const composingRef = useRef(false) // 🎌 IME输入法合成状态
   const editInputRef = useRef<HTMLInputElement>(null) // 编辑输入框的 ref
   const addInputRef = useRef<HTMLInputElement>(null) // 添加输入框的 ref
@@ -136,31 +137,41 @@ export default function Home() {
    * 使用 useCallback 避免闭包陷阱
    */
   const fetchTodos = useCallback(async () => {
-    // ⭐ 使用 selectedDate 而不是固定的今天
-    console.log('📥 查询日期:', selectedDate)
-
-    // ⭐ 调用 Supabase API 查询数据
-    const { data, error } = await supabase
-      .from('todos')                           // 从 todos 表查询
-      .select('*')
-      .eq('delete_flag', false)                // 只查询未删除的任务
-      .eq('task_date', selectedDate)           // ⭐ 查询选中日期的任务
-      .eq('user_id', userId)                   // 🔒 关键：只查询当前用户的任务
-      .order('sort_order', { ascending: true, nullsFirst: false })  // 🆕 优先按 sort_order 排序
-      .order('created_at', { ascending: false }) // 其次按创建时间倒序
-
-    // ⭐ 错误处理
-    if (error) {
-      console.error('❌ 获取任务失败:', error.message)
-      toast.error('获取任务失败', {
-        description: '请检查网络连接',
-      })
-    } else {
-      // ⭐ 成功：更新本地状态
-      console.log('✅ 查询到任务数:', data?.length || 0)
-      setTodos(data || [])  // data 可能是 null，所以用 || [] 做兜底
+    // 🔒 确保 userId 已经设置且不为空
+    if (!userId || userId.trim() === '') {
+      console.log('⚠️ userId 未设置，跳过查询')
+      return
     }
-  }, [selectedDate])  // ⭐ 依赖 selectedDate，当日期改变时重新创建函数
+
+    // ⭐ 使用 selectedDate 而不是固定的今天
+    console.log('📥 查询日期:', selectedDate, '用户ID:', userId)
+
+    try {
+      // ⭐ 调用 Supabase API 查询数据
+      const { data, error } = await supabase
+        .from('todos')                           // 从 todos 表查询
+        .select('*')
+        .eq('delete_flag', false)                // 只查询未删除的任务
+        .eq('task_date', selectedDate)           // ⭐ 查询选中日期的任务
+        .eq('user_id', userId)                   // 🔒 关键：只查询当前用户的任务
+        .order('sort_order', { ascending: true, nullsFirst: false })  // 🆕 优先按 sort_order 排序
+        .order('created_at', { ascending: false }) // 其次按创建时间倒序
+
+      // ⭐ 错误处理
+      if (error) {
+        console.error('❌ 获取任务失败:', error.message, error)
+        toast.error('获取任务失败', {
+          description: error.message || '请检查网络连接',
+        })
+      } else {
+        // ⭐ 成功：更新本地状态
+        console.log('✅ 查询到任务数:', data?.length || 0)
+        setTodos(data || [])  // data 可能是 null，所以用 || [] 做兜底
+      }
+    } catch (err) {
+      console.error('❌ 查询异常:', err)
+    }
+  }, [selectedDate, userId])  // ⭐ 依赖 selectedDate 和 userId
 
   /**
    * 📅 获取所有有任务的日期
@@ -205,6 +216,12 @@ export default function Home() {
    * ➕ 添加新任务到数据库
    */
   const addTodo = async () => {
+    // 🔒 确保 userId 有效
+    if (!userId || userId.trim() === '') {
+      toast.error('请先登录')
+      return
+    }
+
     // 从 ref 读取真实的 DOM 值
     const actualText = addInputRef.current?.value || ''
 
@@ -465,16 +482,35 @@ export default function Home() {
    * 3. 跳转到登录页
    */
   const handleLogout = async () => {
+    // 设置退出中状态
+    setIsLoggingOut(true)
+
+    // 显示loading提示
+    toast.loading('正在退出...', {
+      id: 'logout',
+    })
+
     const { error } = await supabase.auth.signOut()
 
     if (error) {
       console.error('退出失败:', error.message)
+      setIsLoggingOut(false)
       toast.error('退出失败', {
+        id: 'logout',
         description: '请重试',
       })
     } else {
       console.log('✅ 退出成功')
-      router.push('/login')
+      toast.success('退出成功', {
+        id: 'logout',
+        description: '正在跳转到登录页...',
+      })
+
+      // 延迟跳转，让用户看到成功提示
+      setTimeout(() => {
+        setIsLoggingOut(false)
+        router.push('/login')
+      }, 1000)
     }
   }
 
@@ -485,14 +521,18 @@ export default function Home() {
 
   // ========== 监听日期变化：当选中日期改变时重新加载任务 ==========
   useEffect(() => {
-    if (userId) {  // 只有登录后才查询
+    // 🔒 确保 userId 已设置且有效
+    if (userId && userId.trim() !== '') {
+      console.log('🔄 useEffect 触发查询，userId:', userId)
       fetchTodos()
+    } else {
+      console.log('⚠️ useEffect 跳过查询，userId 无效:', userId)
     }
   }, [selectedDate, userId, fetchTodos])  // ⭐ 完整的依赖数组
 
   // ========== 获取所有有任务的日期（用于日历标记） ==========
   useEffect(() => {
-    if (userId) {
+    if (userId && userId.trim() !== '') {
       fetchDatesWithTodos()
     }
   }, [userId, fetchDatesWithTodos])
@@ -801,19 +841,23 @@ export default function Home() {
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>我的账号</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5 text-sm text-gray-600">
-                  {userEmail}
-                </div>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">我的账号</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {userEmail}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  variant="destructive"
                   onClick={handleLogout}
-                  className="cursor-pointer"
+                  disabled={isLoggingOut}
+                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  🚪 退出登录
+                  <LogOut className="mr-1.5 h-4 w-4" />
+                  <span>{isLoggingOut ? '退出中...' : '退出'}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

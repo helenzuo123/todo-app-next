@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 /**
  * 🔐 登录页面组件
@@ -91,8 +92,15 @@ export default function LoginPage() {
       // Token 存储在：localStorage.getItem('supabase.auth.token')
       // 以后每次请求都会自动带上这个 Token
 
-      // 跳转到主页
-      router.push('/')
+      // 显示成功提示
+      toast.success('登录成功！', {
+        description: '正在进入待办清单...',
+      })
+
+      // 延迟跳转，让用户看到成功提示
+      setTimeout(() => {
+        router.push('/')
+      }, 1000)
     }
   }
 
