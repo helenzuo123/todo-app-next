@@ -11,8 +11,10 @@ export interface Todo {
   priority: TodoPriority  // 优先级
   user_id?: string        // 用户 ID（可选，后续用于多用户）
   created_at: string      // 数据库自动生成的创建时间
-  updated_at: string 
-  delete_flag: boolean     
+  updated_at: string      // 更新时间
+  delete_flag: boolean    // 软删除标记
+  task_date: string       // 任务日期（格式：YYYY-MM-DD）
+  sort_order: number | null  // 🆕 排序字段（用户自定义排序）
 }
 
 // 定义统计信息的接口
