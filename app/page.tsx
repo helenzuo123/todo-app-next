@@ -716,7 +716,7 @@ export default function Home() {
               e.stopPropagation()
               onToggle(todo.id, todo.completed)
             }}
-            className={`flex-1 text-[15px] leading-relaxed cursor-pointer ${
+            className={`flex-1 text-[15px] leading-relaxed cursor-pointer break-words ${
               todo.completed ? 'line-through text-gray-400' : 'text-gray-800'
             }`}
           >
