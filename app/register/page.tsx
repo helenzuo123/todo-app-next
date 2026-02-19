@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 /**
  * 🔐 注册页面组件
@@ -85,8 +86,14 @@ export default function RegisterPage() {
 
     // ✅ 注册成功的处理
     if (data.user) {
-      alert('注册成功！请查收邮箱验证邮件（可能在垃圾邮件中）')
-      router.push('/login')  // 跳转到登录页
+      toast.success('注册成功！', {
+        description: '请查收邮箱验证邮件（可能在垃圾邮件中）',
+        duration: 5000,
+      })
+      // 延迟跳转，让用户看到成功提示
+      setTimeout(() => {
+        router.push('/login')
+      }, 1500)
     }
   }
 

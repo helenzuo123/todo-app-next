@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { toast } from 'sonner'
 import {
   DndContext,
   closestCenter,
@@ -144,13 +145,16 @@ export default function Home() {
       .select('*')
       .eq('delete_flag', false)                // 只查询未删除的任务
       .eq('task_date', selectedDate)           // ⭐ 查询选中日期的任务
+      .eq('user_id', userId)                   // 🔒 关键：只查询当前用户的任务
       .order('sort_order', { ascending: true, nullsFirst: false })  // 🆕 优先按 sort_order 排序
       .order('created_at', { ascending: false }) // 其次按创建时间倒序
 
     // ⭐ 错误处理
     if (error) {
       console.error('❌ 获取任务失败:', error.message)
-      alert('获取任务失败，请检查网络连接')
+      toast.error('获取任务失败', {
+        description: '请检查网络连接',
+      })
     } else {
       // ⭐ 成功：更新本地状态
       console.log('✅ 查询到任务数:', data?.length || 0)
@@ -224,7 +228,9 @@ export default function Home() {
 
     if (error) {
       console.error('❌ 添加任务失败:', error.message)
-      alert('添加失败，请重试')
+      toast.error('添加失败', {
+        description: '请重试',
+      })
     } else {
       // ⭐ 成功：将新任务添加到本地状态（避免重新请求数据库）
       setTodos([...data, ...todos])  // 新任务放在最前面
@@ -261,6 +267,7 @@ export default function Home() {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('user_id', userId)  // 🔒 确保只能修改自己的任务
 
     if (error) {
       console.error('❌ 更新任务失败:', error.message)
@@ -272,7 +279,9 @@ export default function Home() {
             : todo
         )
       )
-      alert('更新失败，请重试')
+      toast.error('更新失败', {
+        description: '请重试',
+      })
     }
   }
 
@@ -284,7 +293,7 @@ export default function Home() {
   const updateTodo = async (id: string, newText: string, newPriority: TodoPriority) => {
     // 验证输入不为空
     if (!newText.trim()) {
-      alert('任务内容不能为空')
+      toast.warning('任务内容不能为空')
       return
     }
 
@@ -297,10 +306,13 @@ export default function Home() {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('user_id', userId)  // 🔒 确保只能修改自己的任务
 
     if (error) {
       console.error('❌ 更新任务失败:', error.message)
-      alert('更新失败，请重试')
+      toast.error('更新失败', {
+        description: '请重试',
+      })
     } else {
       // ⭐ 成功：清除编辑状态，重新获取数据
       setEditingId('')
@@ -323,6 +335,7 @@ export default function Home() {
         updated_at: new Date().toISOString()    // ← 🆕 记录删除时间
       })
       .eq('id', id)
+      .eq('user_id', userId)  // 🔒 确保只能删除自己的任务
 
     if (error) {
       console.error('❌ 删除任务失败:', error.message)
@@ -372,6 +385,7 @@ export default function Home() {
             .from('todos')
             .update({ sort_order: update.sort_order, updated_at: update.updated_at })
             .eq('id', update.id)
+            .eq('user_id', userId)  // 🔒 确保只能更新自己的任务
         )
       )
 
@@ -455,7 +469,9 @@ export default function Home() {
 
     if (error) {
       console.error('退出失败:', error.message)
-      alert('退出失败，请重试')
+      toast.error('退出失败', {
+        description: '请重试',
+      })
     } else {
       console.log('✅ 退出成功')
       router.push('/login')
