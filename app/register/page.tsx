@@ -69,6 +69,9 @@ export default function RegisterPage() {
     // 关闭加载状态
     setLoading(false)
 
+    console.log('注册返回数据:', data)
+    console.log('注册返回错误:', registerError)
+
     // ❌ 注册失败的处理
     if (registerError) {
       console.error('注册失败:', registerError.message)
@@ -84,8 +87,21 @@ export default function RegisterPage() {
       return
     }
 
-    // ✅ 注册成功的处理
-    if (data.user) {
+    // 🔍 检查是否是已存在的用户（Supabase 安全策略：已注册邮箱不返回错误）
+    // 判断条件：
+    // 1. data.user 存在但没有 identities（身份信息）
+    // 2. 或者 identities 是空数组
+    // 这表示邮箱已经注册过了
+    if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+      setError('该邮箱已被注册，请直接登录')
+      toast.warning('该邮箱已被注册', {
+        description: '请直接登录或使用其他邮箱',
+      })
+      return
+    }
+
+    // ✅ 注册成功的处理（新用户）
+    if (data.user && data.user.identities && data.user.identities.length > 0) {
       toast.success('注册成功！', {
         description: '请查收邮箱验证邮件（可能在垃圾邮件中）',
         duration: 5000,
